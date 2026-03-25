@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Dashboard Operacional — Zone Lead</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #F4F6F9;
+  --card: #FFFFFF;
+  --border: #E8ECF0;
+  --text: #1A2332;
+  --muted: #6B7A8D;
+  --green: #10B981;
+  --green-bg: #ECFDF5;
+  --red: #EF4444;
+  --red-bg: #FEF2F2;
+  --yellow: #F59E0B;
+  --yellow-bg: #FFFBEB;
+  --blue: #3B82F6;
+  --blue-bg: #EFF6FF;
+  --orange: #FF6B35;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; min-height: 100vh; padding-bottom: 32px; }
+
+.header {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 14px 16px; display: flex; align-items: center;
+  justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: var(--shadow);
+}
+.header-left { display: flex; align-items: center; gap: 10px; }
+.logo { width: 32px; height: 32px; background: #3B82F6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12px; color: white; }
+.header h1 { font-size: 15px; font-weight: 600; }
+.header p { font-size: 11px; color: var(--muted); }
+.refresh-btn { display: flex; align-items: center; gap: 5px; background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; color: var(--muted); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+.refresh-btn:hover { background: var(--bg); }
+.refresh-btn.spinning svg { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* STORE MULTI-SELECT */
+.filter-bar { background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 16px; }
+.filter-title { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+.store-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.store-chip {
+  padding: 5px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  border: 1.5px solid var(--border); background: var(--bg); color: var(--muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.store-chip.active { border-color: var(--blue); background: var(--blue-bg); color: var(--blue); }
+.store-chip.all { border-color: var(--orange); }
+.store-chip.all.active { background: #FFF7F4; color: var(--orange); border-color: var(--orange); }
+.filter-meta { display: flex; align-items: center; justify-content: space-between; }
+.filter-meta span { font-size: 11px; color: var(--muted); }
+.last-update { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+.section-title { font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); padding: 16px 16px 8px; }
+
+/* SUMMARY COUNTERS */
+.counters-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; padding: 0 16px; }
+.counter-card { background: var(--card); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); border-top: 3px solid transparent; }
+.counter-card.good { border-top-color: var(--green); }
+.counter-card.bad { border-top-color: var(--red); }
+.counter-card.warn { border-top-color: var(--yellow); }
+.counter-card.pending { border-top-color: var(--border); }
+.counter-label { font-size: 9px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.counter-target { font-size: 9px; color: var(--muted); }
+.counter-target span { font-family: 'DM Mono', monospace; }
+.counter-value { font-family: 'DM Mono', monospace; font-size: 20px; font-weight: 500; line-height: 1.2; margin: 3px 0; }
+.counter-card.good .counter-value { color: var(--green); }
+.counter-card.bad .counter-value { color: var(--red); }
+.counter-card.warn .counter-value { color: var(--yellow); }
+.counter-card.pending .counter-value { color: var(--muted); }
+.counter-stores { font-size: 10px; color: var(--muted); }
+.counter-stores .ok { color: var(--green); font-weight: 600; }
+.counter-stores .nok { color: var(--red); font-weight: 600; }
+
+/* RANKING TABLE */
+.ranking-card { margin: 0 16px; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.ranking-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.ranking-header h3 { font-size: 13px; font-weight: 600; }
+.metric-tabs { display: flex; gap: 4px; }
+.metric-tab { padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 500; border: 1px solid var(--border); background: var(--bg); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+.metric-tab.active { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
+
+.store-row { display: grid; grid-template-columns: 28px 1fr 60px 60px 60px; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--border); align-items: center; }
+.store-row:last-child { border-bottom: none; }
+.store-row-header { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg); }
+
+.rank-num { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.rank-1 { background: #FEF9C3; color: #854D0E; }
+.rank-2 { background: #F1F5F9; color: #475569; }
+.rank-3 { background: #FEF3C7; color: #92400E; }
+.rank-n { background: var(--bg); color: var(--muted); }
+
+.store-name-cell { font-size: 13px; }
+.store-name-cell small { display: block; font-size: 10px; color: var(--muted); }
+
+.metric-cell { font-family: 'DM Mono', monospace; font-size: 12px; font-weight: 500; text-align: right; }
+.metric-cell.good { color: var(--green); }
+.metric-cell.bad { color: var(--red); }
+.metric-cell.warn { color: var(--yellow); }
+.metric-cell.pending { color: var(--muted); }
+
+.qa-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; }
+.qa-gold { background: #FEF9C3; color: #854D0E; }
+.qa-silver { background: #F1F5F9; color: #374151; }
+.qa-bronze { background: #FEF3C7; color: #92400E; }
+.qa-none { background: var(--bg); color: var(--muted); }
+
+/* CHART */
+.chart-card { margin: 0 16px; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.chart-header { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.chart-header h3 { font-size: 13px; font-weight: 600; }
+.chart-header p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.chart-body { padding: 16px; }
+.chart-body canvas { max-height: 220px; }
+
+/* ALERTS */
+.alerts-card { margin: 0 16px; background: var(--card); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.alert-row { display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.alert-row:last-child { border-bottom: none; }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+.alert-dot.red { background: var(--red); }
+.alert-dot.yellow { background: var(--yellow); }
+.alert-dot.green { background: var(--green); }
+.alert-text { font-size: 12px; line-height: 1.5; }
+.alert-text strong { font-weight: 600; }
+.alert-text span { color: var(--muted); font-size: 11px; display: block; margin-top: 1px; }
+
+/* LINKS */
+.links-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; }
+.link-card { background: var(--card); border-radius: 12px; padding: 14px; box-shadow: var(--shadow); text-decoration: none; display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); transition: all 0.2s; }
+.link-card:hover { border-color: var(--blue); transform: translateY(-1px); }
+.link-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+.link-card h4 { font-size: 12px; font-weight: 600; color: var(--text); }
+.link-card p { font-size: 10px; color: var(--muted); margin-top: 1px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">ZL</div>
+    <div>
+      <h1>Dashboard Zone Lead</h1>
+      <p>Colombia — Turbo</p>
+    </div>
+  </div>
+  <button class="refresh-btn" onclick="refreshAll()" id="refreshBtn">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+      <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.66 0 3-4.03 3-9s-1.34-9-3-9m0 18c-1.66 0-3-4.03-3-9s1.34-9 3-9"/>
+    </svg>
+    Actualizar
+  </button>
+</div>
+
+<div class="filter-bar">
+  <div class="filter-title">Mis tiendas</div>
+  <div class="store-chips" id="storeChips"></div>
+  <div class="filter-meta">
+    <span id="selectedCount">0 tiendas seleccionadas</span>
+    <span class="last-update" id="lastUpdate">—</span>
+  </div>
+</div>
+
+<div id="mainContent">
+  <div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">Selecciona una o varias tiendas</div>
+</div>
+
+<script>
+const TARGETS = {
+  so:     { value: 2.0,  label: 'SO Ops',      unit: '%' },
+  dr:     { value: 1.45, label: 'Defect Rate',  unit: '%' },
+  cancel: { value: 0.15, label: 'Cancel',       unit: '%' },
+};
+
+const ALL_STORES = [
+  { id: 'CO9N',  name: 'Chico',          qa: 82, qa_status: 'silver', so: 1.8, dr: 1.38, cancel: 0.12 },
+  { id: 'CO67N', name: 'Barrancas',      qa: 61, qa_status: 'bronze', so: 3.2, dr: 2.10, cancel: 0.32 },
+  { id: 'CO50N', name: 'San Patricio',   qa: 74, qa_status: 'silver', so: 2.1, dr: 1.62, cancel: 0.18 },
+  { id: 'CO48N', name: 'La Frontera',    qa: 88, qa_status: 'gold',   so: 1.1, dr: 1.21, cancel: 0.08 },
+  { id: 'CO58N', name: 'Suba Turingia',  qa: 55, qa_status: 'bronze', so: 3.8, dr: 2.45, cancel: 0.41 },
+  { id: 'CO7N',  name: 'Chapinero',      qa: 69, qa_status: 'bronze', so: 2.9, dr: 1.95, cancel: 0.28 },
+  { id: 'CO9N2', name: 'Colina',         qa: 77, qa_status: 'silver', so: 2.3, dr: 1.55, cancel: 0.15 },
+  { id: 'CO10N', name: 'Cedritos',       qa: 71, qa_status: 'silver', so: 2.5, dr: 1.71, cancel: 0.22 },
+];
+
+let selectedStores = [];
+let charts = {};
+
+function getStatus(val, target) {
+  if (!val && val !== 0) return 'pending';
+  if (val <= target * 0.9) return 'good';
+  if (val <= target) return 'warn';
+  return 'bad';
+}
+
+function qaLabel(s) { return { gold: 'ORO', silver: 'PLATA', bronze: 'BRONCE' }[s] || '—'; }
+function qaClass(s) { return { gold: 'qa-gold', silver: 'qa-silver', bronze: 'qa-bronze' }[s] || 'qa-none'; }
+
+function initChips() {
+  const container = document.getElementById('storeChips');
+  container.innerHTML = '';
+
+  const allChip = document.createElement('div');
+  allChip.className = 'store-chip all';
+  allChip.textContent = 'Todas';
+  allChip.onclick = () => toggleAll();
+  container.appendChild(allChip);
+
+  ALL_STORES.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'store-chip';
+    chip.textContent = s.name;
+    chip.dataset.id = s.id;
+    chip.onclick = () => toggleStore(s.id);
+    container.appendChild(chip);
+  });
+}
+
+function toggleAll() {
+  if (selectedStores.length === ALL_STORES.length) {
+    selectedStores = [];
+  } else {
+    selectedStores = ALL_STORES.map(s => s.id);
+  }
+  updateChips();
+  renderDashboard();
+}
+
+function toggleStore(id) {
+  if (selectedStores.includes(id)) {
+    selectedStores = selectedStores.filter(s => s !== id);
+  } else {
+    selectedStores.push(id);
+  }
+  updateChips();
+  renderDashboard();
+}
+
+function updateChips() {
+  document.querySelectorAll('.store-chip[data-id]').forEach(chip => {
+    chip.classList.toggle('active', selectedStores.includes(chip.dataset.id));
+  });
+  const allChip = document.querySelector('.store-chip.all');
+  allChip.classList.toggle('active', selectedStores.length === ALL_STORES.length);
+  document.getElementById('selectedCount').textContent =
+    selectedStores.length === 0 ? 'Ninguna seleccionada' :
+    selectedStores.length === ALL_STORES.length ? 'Todas las tiendas' :
+    `${selectedStores.length} tienda${selectedStores.length > 1 ? 's' : ''} seleccionada${selectedStores.length > 1 ? 's' : ''}`;
+}
+
+function renderDashboard() {
+  if (selectedStores.length === 0) {
+    document.getElementById('mainContent').innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);font-size:13px">Selecciona una o varias tiendas</div>';
+    return;
+  }
+
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const now = new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+  document.getElementById('lastUpdate').textContent = now;
+
+  const stores = ALL_STORES.filter(s => selectedStores.includes(s.id));
+
+  // Aggregates
+  const avgSo     = stores.reduce((a, s) => a + s.so, 0) / stores.length;
+  const avgDr     = stores.reduce((a, s) => a + s.dr, 0) / stores.length;
+  const avgCancel = stores.reduce((a, s) => a + s.cancel, 0) / stores.length;
+  const soOk      = stores.filter(s => s.so <= TARGETS.so.value).length;
+  const drOk      = stores.filter(s => s.dr <= TARGETS.dr.value).length;
+  const cancelOk  = stores.filter(s => s.cancel <= TARGETS.cancel.value).length;
+
+  // Sort stores by SO for ranking
+  const sortedBySO = [...stores].sort((a, b) => a.so - b.so);
+
+  // Alerts
+  const alerts = [];
+  stores.forEach(s => {
+    if (s.so > TARGETS.so.value * 1.5) alerts.push({ level: 'red', text: `${s.name} — SO Ops en ${s.so.toFixed(1)}%`, sub: `${(s.so - TARGETS.so.value).toFixed(1)} pp sobre target` });
+    if (s.dr > TARGETS.dr.value * 1.3) alerts.push({ level: 'yellow', text: `${s.name} — Defect Rate en ${s.dr.toFixed(1)}%`, sub: `Revisar Fruver y packing` });
+    if (s.cancel > TARGETS.cancel.value * 2) alerts.push({ level: 'red', text: `${s.name} — Cancel Rate en ${s.cancel.toFixed(2)}%`, sub: `Revisar pickers reincidentes` });
+  });
+  if (alerts.length === 0) alerts.push({ level: 'green', text: 'Todas las tiendas dentro de rangos normales', sub: 'Sin alertas criticas al momento' });
+
+  const html = `
+    <!-- COUNTERS AGREGADOS -->
+    <div class="section-title">Promedio zona — ${stores.length} tienda${stores.length > 1 ? 's' : ''}</div>
+    <div class="counters-grid">
+      <div class="counter-card ${getStatus(avgSo, TARGETS.so.value)}">
+        <div class="counter-label">SO Ops</div>
+        <div class="counter-target">Target: <span>${TARGETS.so.value}%</span></div>
+        <div class="counter-value">${avgSo.toFixed(2)}%</div>
+        <div class="counter-stores"><span class="ok">${soOk} ok</span> / <span class="nok">${stores.length - soOk} sobre</span></div>
+      </div>
+      <div class="counter-card ${getStatus(avgDr, TARGETS.dr.value)}">
+        <div class="counter-label">Defect Rate</div>
+        <div class="counter-target">Target: <span>${TARGETS.dr.value}%</span></div>
+        <div class="counter-value">${avgDr.toFixed(2)}%</div>
+        <div class="counter-stores"><span class="ok">${drOk} ok</span> / <span class="nok">${stores.length - drOk} sobre</span></div>
+      </div>
+      <div class="counter-card ${getStatus(avgCancel, TARGETS.cancel.value)}">
+        <div class="counter-label">Cancel</div>
+        <div class="counter-target">Target: <span>${TARGETS.cancel.value}%</span></div>
+        <div class="counter-value">${avgCancel.toFixed(2)}%</div>
+        <div class="counter-stores"><span class="ok">${cancelOk} ok</span> / <span class="nok">${stores.length - cancelOk} sobre</span></div>
+      </div>
+    </div>
+
+    <!-- ALERTAS -->
+    <div class="section-title">Alertas activas</div>
+    <div class="alerts-card">
+      ${alerts.map(a => `
+        <div class="alert-row">
+          <div class="alert-dot ${a.level}"></div>
+          <div class="alert-text"><strong>${a.text}</strong><span>${a.sub}</span></div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- RANKING TIENDAS -->
+    <div class="section-title">Ranking tiendas</div>
+    <div class="ranking-card">
+      <div class="ranking-header">
+        <h3>Comparativo de tiendas</h3>
+      </div>
+      <div class="store-row store-row-header">
+        <span>#</span>
+        <span>Tienda</span>
+        <span style="text-align:right">SO</span>
+        <span style="text-align:right">DR</span>
+        <span style="text-align:right">QA</span>
+      </div>
+      ${sortedBySO.map((s, i) => `
+        <div class="store-row">
+          <div class="rank-num ${i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'rank-n'}">${i+1}</div>
+          <div class="store-name-cell">
+            ${s.name}
+            <small>${s.cancel > TARGETS.cancel.value ? '⚠ Cancel alto' : ''}</small>
+          </div>
+          <div class="metric-cell ${getStatus(s.so, TARGETS.so.value)}">${s.so.toFixed(1)}%</div>
+          <div class="metric-cell ${getStatus(s.dr, TARGETS.dr.value)}">${s.dr.toFixed(1)}%</div>
+          <div class="metric-cell"><span class="qa-pill ${qaClass(s.qa_status)}">${s.qa}</span></div>
+        </div>
+      `).join('')}
+    </div>
+
+    <!-- DETALLE POR TIENDA -->
+    <div class="section-title">Detalle por tienda</div>
+    <div style="padding:0 16px;display:flex;flex-direction:column;gap:10px" id="storeDetails"></div>
+
+    <!-- CHART COMPARATIVO -->
+    <div class="section-title">SO Ops por tienda vs target</div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <h3>Comparativo SO Ops</h3>
+        <p>Target: ${TARGETS.so.value}% — linea roja</p>
+      </div>
+      <div class="chart-body">
+        <canvas id="barChart"></canvas>
+      </div>
+    </div>
+
+    <!-- LINKS -->
+    <div class="section-title">Ver dashboards completos</div>
+    <div class="links-row">
+      <a class="link-card" href="https://redash.rappi.com/public/dashboards/f0k4x8zAId1BPLNgxun6eMd9BTEc3DjnuTifYpJD?org_slug=default" target="_blank">
+        <div class="link-icon" style="background:#EDE9FE">📊</div>
+        <div><h4>Defect Rate</h4><p>Ver detalle DR</p></div>
+      </a>
+      <a class="link-card" href="https://redash.rappi.com/public/dashboards/w5W3gZG1XksIkZvqjgFdSYSA53uYNiQqkJvFALD4?org_slug=default" target="_blank">
+        <div class="link-icon" style="background:#FEF3C7">📦</div>
+        <div><h4>Stockouts</h4><p>Ver detalle SO</p></div>
+      </a>
+      <a class="link-card" href="./dashboard_store_lead.html" target="_blank">
+        <div class="link-icon" style="background:#DCFCE7">🏪</div>
+        <div><h4>Store Lead</h4><p>Vista por tienda</p></div>
+      </a>
+      <a class="link-card" href="#" target="_blank">
+        <div class="link-icon" style="background:#DBEAFE">🏆</div>
+        <div><h4>Ranking Pickers</h4><p>Ver ranking</p></div>
+      </a>
+    </div>
+
+    <div style="height:20px"></div>
+  `;
+
+  document.getElementById('mainContent').innerHTML = html;
+
+  document.getElementById('storeDetails').innerHTML = sortedBySO.map((s, i) => {
+    const soS = getStatus(s.so, TARGETS.so.value);
+    const drS = getStatus(s.dr, TARGETS.dr.value);
+    const cancelS = getStatus(s.cancel, TARGETS.cancel.value);
+    const bannerColors = { gold: 'linear-gradient(135deg,#92400e,#b45309)', silver: 'linear-gradient(135deg,#374151,#4b5563)', bronze: 'linear-gradient(135deg,#7c2d12,#9a3412)' };
+    const banner = bannerColors[s.qa_status] || 'linear-gradient(135deg,#1e3a5f,#1e40af)';
+    const colorMap = { good: 'var(--green)', bad: 'var(--red)', warn: 'var(--yellow)', pending: 'var(--muted)' };
+    const metrics = [
+      { label: 'SO Ops', val: s.so, target: TARGETS.so.value, status: soS },
+      { label: 'Defect Rate', val: s.dr, target: TARGETS.dr.value, status: drS },
+      { label: 'Cancel', val: s.cancel, target: TARGETS.cancel.value, status: cancelS },
+    ];
+    return `
+    <div style="background:var(--card);border-radius:12px;box-shadow:var(--shadow);overflow:hidden">
+      <div style="background:${banner};padding:12px 16px;display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:2px">Puesto #${i+1} en zona</div>
+          <div style="font-size:16px;font-weight:600;color:white">${s.name}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:500;color:white;line-height:1">${s.qa}</div>
+          <div style="font-size:10px;color:rgba(255,255,255,0.5)">QA Score</div>
+          <div style="display:inline-block;margin-top:4px;padding:2px 10px;border-radius:20px;font-size:10px;font-weight:600;background:rgba(255,255,255,0.2);color:white">${qaLabel(s.qa_status)}</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr">
+        ${metrics.map((m, mi) => `
+          <div style="padding:12px;${mi < 2 ? 'border-right:1px solid var(--border)' : ''}">
+            <div style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);margin-bottom:4px">${m.label}</div>
+            <div style="font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:${colorMap[m.status]}">${m.val.toFixed(2)}%</div>
+            <div style="font-size:10px;color:var(--muted)">Target ${m.target}%</div>
+            <div style="margin-top:5px;height:3px;background:var(--border);border-radius:2px">
+              <div style="height:100%;border-radius:2px;width:${Math.min(m.val/m.target/1.5*100,100).toFixed(0)}%;background:${colorMap[m.status]}"></div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      ${s.cancel > TARGETS.cancel.value * 2 || s.so > TARGETS.so.value * 1.5 ? `
+        <div style="padding:8px 16px;background:#FEF2F2;border-top:1px solid #FECACA;font-size:11px;color:var(--red);font-weight:600">
+          Requiere atencion inmediata — ${s.so > TARGETS.so.value * 1.5 ? 'SO critico ' : ''}${s.cancel > TARGETS.cancel.value * 2 ? 'Cancel critico' : ''}
+        </div>` : ''}
+    </div>`;
+  }).join('');
+
+  setTimeout(() => {
+    const ctx = document.getElementById('barChart');
+    if (ctx) {
+      charts.bar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: sortedBySO.map(s => s.name),
+          datasets: [{
+            label: 'SO Ops %',
+            data: sortedBySO.map(s => s.so),
+            backgroundColor: sortedBySO.map(s => s.so > TARGETS.so.value ? '#FCA5A5' : '#6EE7B7'),
+            borderColor: sortedBySO.map(s => s.so > TARGETS.so.value ? '#EF4444' : '#10B981'),
+            borderWidth: 1.5,
+            borderRadius: 6,
+          }]
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            annotation: {},
+          },
+          scales: {
+            y: {
+              grid: { color: '#F1F5F9' },
+              ticks: { font: { size: 10, family: 'DM Mono' } },
+            },
+            x: {
+              grid: { display: false },
+              ticks: { font: { size: 10, family: 'DM Sans' }, maxRotation: 30 },
+            }
+          },
+          responsive: true,
+        },
+        plugins: [{
+          afterDraw: (chart) => {
+            const { ctx, scales: { y } } = chart;
+            const yPos = y.getPixelForValue(TARGETS.so.value);
+            ctx.save();
+            ctx.strokeStyle = '#EF4444';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([5, 4]);
+            ctx.beginPath();
+            ctx.moveTo(chart.chartArea.left, yPos);
+            ctx.lineTo(chart.chartArea.right, yPos);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }]
+      });
+    }
+  }, 100);
+}
+
+function refreshAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('spinning');
+  setTimeout(() => { btn.classList.remove('spinning'); renderDashboard(); }, 800);
+}
+
+initChips();
+</script>
+</body>
+</html>
